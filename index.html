@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation Creator</title>
+</head>
+<body>
+    <h1>Documentation Creator</h1>
+    
+    <h2>Record Audio</h2>
+    <button onclick="startRecording()">Start Recording</button>
+    <button onclick="stopRecording()">Stop Recording</button>
+    <div id="recording-status"></div>
+    
+    <h2>Upload Audio</h2>
+    <input type="file" id="fileInput">
+    <button onclick="uploadFile()">Upload</button>
+    
+    <h2>Report</h2>
+    <pre id="report"></pre>
+    
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob, 'recorded_audio.wav');
+                    
+                    fetch('http://localhost:5000/record', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('report').textContent = data.report;
+                    });
+                };
+                mediaRecorder.start();
+                document.getElementById('recording-status').textContent = 'Recording...';
+            });
+        }
+
+        function stopRecording() {
+            mediaRecorder.stop();
+            document.getElementById('recording-status').textContent = 'Recording stopped';
+        }
+
+        function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('http://localhost:5000/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('report').textContent = data.report;
+            });
+        }
+    </script>
+</body>
+</html>
